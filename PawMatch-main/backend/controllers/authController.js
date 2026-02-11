@@ -6,10 +6,7 @@ const jwt = require('jsonwebtoken');
 const emailService = require('../services/emailService');
 const nicValidator = require('../utils/nicValidator');
 
-const otplib = require('otplib');
-const qrcode = require('qrcode');
-
-// Helper to generate 6 digit OTP (fallback)
+// Helper to generate 6 digit OTP
 const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
@@ -45,15 +42,12 @@ exports.register = async (req, res) => {
             return res.status(400).json({ error: 'User already exists' });
         }
 
-        // 4. Hash Password & Setup TOTP
+        // 4. Hash Password & Generate OTP
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Use TOTP instead of random OTP
-        const totpSecret = otplib.authenticator.generateSecret();
-        const otpauth = otplib.authenticator.keyuri(email, 'PawMatch', totpSecret);
-        const qrCodeDataUrl = await qrcode.toDataURL(otpauth);
-
+        // Generate 6-digit OTP
+        const otp = generateOTP();
         const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
         // 5. Handle Pending Users
@@ -61,29 +55,25 @@ exports.register = async (req, res) => {
 
         if (pendingCheck.rows.length > 0) {
             await db.query(
-                'UPDATE pending_users SET name = ?, password_hash = ?, phone_number = ?, nic = ?, role = ?, shelter_name = ?, totp_secret = ?, otp_expires_at = ? WHERE email = ?',
-                [name, hashedPassword, phone || null, cleanNic, userRole, shelter_name || null, totpSecret, otpExpiresAt, email]
+                'UPDATE pending_users SET name = ?, password_hash = ?, phone_number = ?, nic = ?, role = ?, shelter_name = ?, otp = ?, otp_expires_at = ? WHERE email = ?',
+                [name, hashedPassword, phone || null, cleanNic, userRole, shelter_name || null, otp, otpExpiresAt, email]
             );
         } else {
             await db.query(
-                'INSERT INTO pending_users (name, email, password_hash, phone_number, role, shelter_name, is_verified, nic, totp_secret, otp_expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [name, email, hashedPassword, phone || null, userRole, shelter_name || null, false, cleanNic, totpSecret, otpExpiresAt]
+                'INSERT INTO pending_users (name, email, password_hash, phone_number, role, shelter_name, is_verified, nic, otp, otp_expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [name, email, hashedPassword, phone || null, userRole, shelter_name || null, false, cleanNic, otp, otpExpiresAt]
             );
         }
 
+        // Send OTP via SendGrid
+        await emailService.sendOTP(email, otp);
+
         res.status(200).json({
             success: true,
-            message: 'Setup your authenticator app to continue.',
+            message: 'Verification code sent to your email.',
             requiresVerification: true,
-            email: email,
-            qrCode: qrCodeDataUrl // Send QR code to frontend
+            email: email
         });
-
-        // Background logging (still keeping it for debugging)
-        console.log(`\n==================================================`);
-        console.log(`🔐 TOTP Setup for ${email}`);
-        console.log(`Secret: ${totpSecret}`);
-        console.log(`==================================================\n`);
 
     } catch (error) {
         console.error('Registration Error:', error);
@@ -117,13 +107,8 @@ exports.verifyEmail = async (req, res) => {
             return res.status(400).json({ error: 'Verification window expired' });
         }
 
-        // 3. Verify TOTP Code
-        const isValid = otplib.authenticator.verify({
-            token: otp,
-            secret: pendingUser.totp_secret
-        });
-
-        if (!isValid) {
+        // 3. Verify OTP Code
+        if (pendingUser.otp !== otp) {
             connection.release();
             return res.status(400).json({ error: 'Invalid verification code' });
         }
@@ -242,21 +227,20 @@ exports.resendOTP = async (req, res) => {
         }
 
         const pendingUser = pendingCheck.rows[0];
-        const totpSecret = pendingUser.totp_secret || otplib.authenticator.generateSecret();
-
-        const otpauth = otplib.authenticator.keyuri(email, 'PawMatch', totpSecret);
-        const qrCodeDataUrl = await qrcode.toDataURL(otpauth);
+        const otp = generateOTP();
         const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
         await db.query(
-            'UPDATE pending_users SET totp_secret = ?, otp_expires_at = ? WHERE email = ?',
-            [totpSecret, otpExpiresAt, email]
+            'UPDATE pending_users SET otp = ?, otp_expires_at = ? WHERE email = ?',
+            [otp, otpExpiresAt, email]
         );
+
+        // Send OTP via SendGrid
+        await emailService.sendOTP(email, otp);
 
         res.json({
             success: true,
-            message: "Setup instructions simplified.",
-            qrCode: qrCodeDataUrl
+            message: "Verification code resent to your email."
         });
 
     } catch (error) {
