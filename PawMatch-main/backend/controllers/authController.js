@@ -55,12 +55,12 @@ exports.register = async (req, res) => {
 
         if (pendingCheck.rows.length > 0) {
             await db.query(
-                'UPDATE pending_users SET name = ?, password_hash = ?, phone_number = ?, nic = ?, role = ?, shelter_name = ?, otp = ?, otp_expires_at = ? WHERE email = ?',
+                'UPDATE pending_users SET name = ?, password_hash = ?, phone_number = ?, nic = ?, role = ?, shelter_name = ?, otp_hash = ?, otp_expires_at = ? WHERE email = ?',
                 [name, hashedPassword, phone || null, cleanNic, userRole, shelter_name || null, otp, otpExpiresAt, email]
             );
         } else {
             await db.query(
-                'INSERT INTO pending_users (name, email, password_hash, phone_number, role, shelter_name, is_verified, nic, otp, otp_expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO pending_users (name, email, password_hash, phone_number, role, shelter_name, is_verified, nic, otp_hash, otp_expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 [name, email, hashedPassword, phone || null, userRole, shelter_name || null, false, cleanNic, otp, otpExpiresAt]
             );
         }
@@ -108,7 +108,7 @@ exports.verifyEmail = async (req, res) => {
         }
 
         // 3. Verify OTP Code
-        if (pendingUser.otp !== otp) {
+        if (pendingUser.otp_hash !== otp) {
             connection.release();
             return res.status(400).json({ error: 'Invalid verification code' });
         }
@@ -231,7 +231,7 @@ exports.resendOTP = async (req, res) => {
         const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
         await db.query(
-            'UPDATE pending_users SET otp = ?, otp_expires_at = ? WHERE email = ?',
+            'UPDATE pending_users SET otp_hash = ?, otp_expires_at = ? WHERE email = ?',
             [otp, otpExpiresAt, email]
         );
 
