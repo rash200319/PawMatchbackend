@@ -58,23 +58,23 @@ export function Footer() {
             <h4 className="font-semibold">Resources</h4>
             <ul className="space-y-2 text-sm text-background/70">
               <li>
-                <Link href="/3-3-3-rule" className="hover:text-background transition-colors">
-                  The 3-3-3 Rule
+                <Link href="/foster-to-adopt" className="hover:text-background transition-colors">
+                  Foster to Adopt
                 </Link>
               </li>
               <li>
-                <Link href="/adoption-guide" className="hover:text-background transition-colors">
-                  Adoption Guide
-                </Link>
-              </li>
-              <li>
-                <Link href="/faq" className="hover:text-background transition-colors">
-                  FAQ
+                <Link href="/buddy-check" className="hover:text-background transition-colors">
+                  Buddy Check
                 </Link>
               </li>
               <li>
                 <Link href="/community-report" className="hover:text-background transition-colors">
                   Report an Animal
+                </Link>
+              </li>
+              <li>
+                <Link href="/shelters" className="hover:text-background transition-colors">
+                  Partner Shelters
                 </Link>
               </li>
             </ul>
@@ -100,18 +100,10 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-background/20 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-background/60">
+        <div className="mt-12 pt-8 border-t border-background/20 flex flex-col md:flex-row items-center justify-center gap-4 text-sm text-background/60">
           <p className="flex items-center gap-1">
             Made with <Heart className="w-4 h-4 text-primary fill-primary" /> for animals everywhere
           </p>
-          <div className="flex items-center gap-6">
-            <Link href="/privacy" className="hover:text-background transition-colors">
-              Privacy
-            </Link>
-            <Link href="/terms" className="hover:text-background transition-colors">
-              Terms
-            </Link>
-          </div>
         </div>
       </div>
     </footer>
