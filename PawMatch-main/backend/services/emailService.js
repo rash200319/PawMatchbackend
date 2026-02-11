@@ -2,6 +2,7 @@ const sgMail = require('@sendgrid/mail');
 require('dotenv').config();
 
 // Initialize SendGrid
+//checkign git pull
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const isSendGridConfigured = process.env.SENDGRID_API_KEY;
