@@ -18,6 +18,21 @@ exports.uploadMiddleware = (req, res, next) => {
 
 exports.addPet = async (req, res) => {
     try {
+        // Check if user is a shelter and is verified
+        if (req.user?.role === 'shelter') {
+            const shelterCheck = await db.query(
+                'SELECT verification_status FROM shelters WHERE user_id = ?',
+                [req.user.id]
+            );
+            
+            if (shelterCheck.rows.length === 0 || shelterCheck.rows[0].verification_status !== 'verified') {
+                return res.status(403).json({
+                    error: 'Verification Required',
+                    details: 'Your shelter must be verified before you can add pets to the system.'
+                });
+            }
+        }
+
         const {
             name, type, breed, age, gender, size, energy_level,
             temperament, social_profile, living_situation_match, description, shelter_id,
