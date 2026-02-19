@@ -1,10 +1,9 @@
 const db = require('../config/db');
-const { upload } = require('../config/cloudinary');
+const { upload, documentUpload } = require('../config/cloudinary');
 const emailService = require('../services/emailService');
 
-// Re-use the existing upload config but maybe we want a separate folder or setting for docs?
-// For now, standard image/pdf upload is fine. Cloudinary supports PDFs.
-exports.uploadVerificationDoc = upload.single('document');
+// Use specialized document upload (supports PDF)
+exports.uploadVerificationDoc = documentUpload.single('document');
 
 exports.submitVerification = async (req, res) => {
     try {
