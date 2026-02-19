@@ -28,4 +28,17 @@ const upload = multer({
     limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
-module.exports = { cloudinary, upload };
+const documentStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'pawmatch/documents',
+        allowed_formats: ['jpg', 'png', 'jpeg', 'webp', 'pdf'],
+        resource_type: 'auto'
+    },
+});
+const documentUpload = multer({
+    storage: documentStorage,
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit for docs
+});
+module.exports = { cloudinary, upload, documentUpload };
+
