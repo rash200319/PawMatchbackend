@@ -144,7 +144,7 @@ exports.verifyEmail = async (req, res) => {
                         pendingUser.shelter_name || pendingUser.name,
                         pendingUser.phone_number,
                         pendingUser.nic, // Mapping NIC field to Registration Number for shelters
-                        'pending' // Default status for new shelters
+                        'unverified' // Default status for new shelters
                     ]
                 );
             } else if (pendingUser.role === 'admin') {
@@ -176,7 +176,7 @@ exports.verifyEmail = async (req, res) => {
                     // For convenience, add the name/shelter name to the token
                     name: pendingUser.name,
                     shelter_name: pendingUser.role === 'shelter' ? pendingUser.shelter_name : undefined,
-                    verification_status: pendingUser.role === 'shelter' ? 'pending' : undefined
+                    verification_status: pendingUser.role === 'shelter' ? 'unverified' : undefined
                 }
             };
 
