@@ -89,7 +89,7 @@ export function WelfareDashboard() {
       const data = await res.json()
       if (data.success && data.adoptions.length > 0) {
         setAdoptions(data.adoptions)
-        setSelectedAdoptionId(data.adoptions[0].id)
+        
         // Mark application notifications as read
         fetch("/api/notifications/read", {
           method: 'PUT',
@@ -126,7 +126,12 @@ export function WelfareDashboard() {
       setLoading(false)
     }
   }
-
+  useEffect(() => {
+    if (adoptions.length > 0 && !selectedAdoptionId) {
+      setSelectedAdoptionId(adoptions[0].id)
+    }
+  }, [adoptions, selectedAdoptionId])
+  
   useEffect(() => {
     fetchUserAdoptions()
   }, [user, token])
