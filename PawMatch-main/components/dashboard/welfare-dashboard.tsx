@@ -87,20 +87,27 @@ export function WelfareDashboard() {
         headers: { 'x-auth-token': token }
       })
       const data = await res.json()
-      if (data.success && data.adoptions.length > 0) {
-        setAdoptions(data.adoptions)
+      if (data.success && data.adoptions && data.adoptions.length > 0) {
+        // Only show active/approved adoptions in welfare tracker
+        const activeAdoptions = data.adoptions.filter((a: any) => a.status === 'active');
         
-        // Mark application notifications as read
-        fetch("/api/notifications/read", {
-          method: 'PUT',
-          headers: {
-            "Content-Type": "application/json",
-            "x-auth-token": token || ""
-          },
-          body: JSON.stringify({ type: 'application' })
-        }).then(() => {
-          if (user) refreshUser({ ...user, pending_applications: 0 });
-        }).catch(err => console.error("Error marking read:", err));
+        if (activeAdoptions.length > 0) {
+          setAdoptions(activeAdoptions)
+          // Mark application notifications as read
+          fetch("/api/notifications/read", {
+            method: 'PUT',
+            headers: {
+              "Content-Type": "application/json", 
+              "x-auth-token": token || ""
+            },
+            body: JSON.stringify({ type: 'application' })
+          }).then(() => {
+            if (user) refreshUser({ ...user, pending_applications: 0 });
+          }).catch(err => console.error("Error marking read:", err));
+        } else {
+            setAdoptions([])
+            setLoading(false)
+        }
       } else {
         setAdoptions([])
         setLoading(false)
