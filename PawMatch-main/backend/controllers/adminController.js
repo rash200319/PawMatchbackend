@@ -66,8 +66,9 @@ exports.verifyShelter = async (req, res) => {
         }
 
         const newStatus = action === 'approve' ? 'verified' : 'rejected';
+        const isVerified = action === 'approve' ? 1 : 0;
 
-        await db.query("UPDATE users SET verification_status = ? WHERE id = ?", [newStatus, shelterId]);
+        await db.query("UPDATE users SET verification_status = ?, is_verified = ? WHERE id = ?", [newStatus, isVerified, shelterId]);
         await db.query("UPDATE shelters SET verification_status = ? WHERE user_id = ?", [newStatus, shelterId]);
 
         // Send email notification (mock)
