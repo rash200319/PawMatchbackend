@@ -45,18 +45,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const storedUser = sessionStorage.getItem("user")
         const storedToken = sessionStorage.getItem("token")
 
-        if (storedUser && storedToken) {
-            try {
-                setUser(JSON.parse(storedUser))
-                setToken(storedToken)
-            } catch (error) {
-                console.error("Failed to parse user from sessionStorage", error)
-                // Clear invalid data
-                sessionStorage.removeItem("user")
-                sessionStorage.removeItem("token")
-            }
+        if (storedToken) {
+            setToken(storedToken)
+            // Always fetch fresh user data from server if we have a token
+            fetch("/api/me", {
+                headers: { "Authorization": `Bearer ${storedToken}` }
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.id) {
+                        setUser(data)
+                        sessionStorage.setItem("user", JSON.stringify(data))
+                    } else if (storedUser) {
+                        // Fallback to stored user if fetch fails but we have it
+                        setUser(JSON.parse(storedUser))
+                    }
+                })
+                .catch(() => {
+                    if (storedUser) setUser(JSON.parse(storedUser))
+                })
+                .finally(() => setIsLoading(false))
+        } else {
+            setIsLoading(false)
         }
-        setIsLoading(false)
     }, [])
 
     const login = (newToken: string, newUser: User) => {
