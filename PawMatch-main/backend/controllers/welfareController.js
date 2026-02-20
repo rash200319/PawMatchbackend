@@ -6,17 +6,17 @@ exports.getDashboard = async (req, res) => {
         const { adoptionId } = req.params;
         const userId = req.user.id;
 
-        // 1. Get Adoption & Pet Details - Verify ownership
+        // 1. Get Adoption & Pet Details - Verify ownership & Active Status
         const adoptionRes = await db.query(`
             SELECT a.*, p.name as pet_name, p.image_url 
             FROM adoptions a 
             JOIN pets p ON a.pet_id = p.id 
-            WHERE a.id = ? AND a.user_id = ?
+            WHERE a.id = ? AND a.user_id = ? AND a.status = 'active'
         `, [adoptionId, userId]);
 
         const adoptionArr = adoptionRes.rows || adoptionRes;
         if (adoptionArr.length === 0) {
-            return res.status(404).json({ error: "Adoption record not found or access denied" });
+            return res.status(404).json({ error: "Adoption record not found, or adoption is not yet active." });
         }
 
         const adoption = adoptionArr[0];
