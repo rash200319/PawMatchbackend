@@ -62,6 +62,7 @@ export function WelfareDashboard() {
   const [adoptions, setAdoptions] = useState<any[]>([])
   const [selectedAdoptionId, setSelectedAdoptionId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isFetching, setIsFetching] = useState(false)
   const [dashboardData, setDashboardData] = useState<any>(null)
 
   const [logForm, setLogForm] = useState({
@@ -89,15 +90,22 @@ export function WelfareDashboard() {
       const data = await res.json()
       if (data.success && data.adoptions && data.adoptions.length > 0) {
         // Only show active/approved adoptions in welfare tracker
-        const activeAdoptions = data.adoptions.filter((a: any) => a.status === 'active');
-        
+        // Including 'approved' and 'active' just in case, though backend uses 'active' for tracker
+        const activeAdoptions = data.adoptions.filter((a: any) => a.status === 'active' || a.status === 'approved');
+
         if (activeAdoptions.length > 0) {
           setAdoptions(activeAdoptions)
+
+          // If only one, auto-select it
+          if (activeAdoptions.length === 1) {
+            setSelectedAdoptionId(activeAdoptions[0].id)
+          }
+
           // Mark application notifications as read
           fetch("/api/notifications/read", {
             method: 'PUT',
             headers: {
-              "Content-Type": "application/json", 
+              "Content-Type": "application/json",
               "x-auth-token": token || ""
             },
             body: JSON.stringify({ type: 'application' })
@@ -105,21 +113,21 @@ export function WelfareDashboard() {
             if (user) refreshUser({ ...user, pending_applications: 0 });
           }).catch(err => console.error("Error marking read:", err));
         } else {
-            setAdoptions([])
-            setLoading(false)
+          setAdoptions([])
         }
       } else {
         setAdoptions([])
-        setLoading(false)
       }
     } catch (err) {
       console.error("Fetch adoptions error:", err)
+    } finally {
       setLoading(false)
     }
   }
 
   const fetchDashboard = async (id: number) => {
     if (!token) return
+    setIsFetching(true)
     try {
       const res = await fetch(`/api/welfare/${id}`, {
         headers: { 'x-auth-token': token }
@@ -129,16 +137,13 @@ export function WelfareDashboard() {
       setDashboardData(data)
     } catch (err) {
       console.error("Dashboard load error", err)
+      toast.error("Could not load pet data")
+      setSelectedAdoptionId(null)
     } finally {
-      setLoading(false)
+      setIsFetching(false)
     }
   }
-  useEffect(() => {
-    if (adoptions.length > 0 && !selectedAdoptionId) {
-      setSelectedAdoptionId(adoptions[0].id)
-    }
-  }, [adoptions, selectedAdoptionId])
-  
+
   useEffect(() => {
     fetchUserAdoptions()
   }, [user, token])
@@ -146,6 +151,8 @@ export function WelfareDashboard() {
   useEffect(() => {
     if (selectedAdoptionId) {
       fetchDashboard(selectedAdoptionId)
+    } else {
+      setDashboardData(null)
     }
   }, [selectedAdoptionId])
 
@@ -235,6 +242,18 @@ export function WelfareDashboard() {
     }
   }
 
+  const calculateSimpleProgress = (adoptionDate: string) => {
+    const today = new Date()
+    const start = new Date(adoptionDate)
+    const diffTime = Math.abs(today.getTime() - start.getTime())
+    const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
+    const percent = Math.min(100, Math.round((diffDays / 90) * 100))
+    let phase = "Decompression"
+    if (diffDays > 3) phase = "Learning"
+    if (diffDays > 21) phase = "Bonding"
+    return { percent, phase, days: diffDays }
+  }
+
   if (!user) return <div className="p-20 text-center">Please sign in to view your welfare tracker.</div>
   if (loading) return <div className="p-20 text-center">Loading tracker...</div>
 
@@ -251,30 +270,104 @@ export function WelfareDashboard() {
     )
   }
 
-  if (!dashboardData) return <div className="p-20 text-center">Select a pet to view progress.</div>
+  // --- VIEW 1: SELECT PET ---
+  if (!selectedAdoptionId) {
+    return (
+      <div className="py-12 bg-muted/30 min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mb-12">
+            <h1 className="text-4xl font-extrabold text-foreground tracking-tight mb-2">My Adopted Pets</h1>
+            <p className="text-muted-foreground text-lg">Select a pet to update their daily welfare log and track progress.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {adoptions.map((a) => {
+              const progress = calculateSimpleProgress(a.adoption_date)
+              return (
+                <Card
+                  key={a.id}
+                  className="group overflow-hidden border-none shadow-sm hover:shadow-xl transition-all cursor-pointer bg-white rounded-3xl"
+                  onClick={() => setSelectedAdoptionId(a.id)}
+                >
+                  <div className="relative h-64 overflow-hidden">
+                    <img
+                      src={a.petImage || "/placeholder.svg"}
+                      alt={a.petName}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                    <div className="absolute top-4 left-4">
+                      <Badge className="bg-white/90 backdrop-blur-md text-primary font-bold px-4 py-1.5 rounded-full border-none shadow-sm">
+                        Day {progress.days}
+                      </Badge>
+                    </div>
+                  </div>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-2xl font-bold">{a.petName}</CardTitle>
+                    <CardDescription className="text-sm font-medium">
+                      {progress.phase} Phase
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs font-bold uppercase text-muted-foreground">
+                        <span>Overall Progress</span>
+                        <span>{progress.percent}%</span>
+                      </div>
+                      <Progress value={progress.percent} className="h-2" />
+                    </div>
+                    <Button className="w-full rounded-2xl font-bold group-hover:bg-primary/90">
+                      View Tracker
+                      <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // --- VIEW 2: DETAILED TRACKER ---
+  if (isFetching || !dashboardData) {
+    return <div className="p-20 text-center min-h-screen">Loading tracker details for {adoptions.find(a => a.id === selectedAdoptionId)?.petName}...</div>
+  }
 
   const isCompleted = dashboardData.isCompleted
 
   return (
-    <div className="py-8 bg-muted/30 min-h-screen">
+    <div className="py-8 bg-muted/30 min-h-screen animate-in fade-in duration-500">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {adoptions.length > 1 && (
-          <div className="flex gap-4 mb-8 overflow-x-auto pb-2">
-            {adoptions.map((a) => (
-              <button
-                key={a.id}
-                onClick={() => setSelectedAdoptionId(a.id)}
-                className={cn(
-                  "flex items-center gap-3 p-3 rounded-2xl border transition-all whitespace-nowrap",
-                  selectedAdoptionId === a.id ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted"
-                )}
-              >
-                <img src={a.petImage || "/placeholder.svg"} className="w-8 h-8 rounded-full object-cover" />
-                <span className="font-medium text-sm">{a.petName}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="flex items-center gap-4 mb-8">
+          {adoptions.length > 1 && (
+            <Button
+              variant="ghost"
+              onClick={() => setSelectedAdoptionId(null)}
+              className="rounded-full hover:bg-white/50"
+            >
+              <ArrowRight className="w-4 h-4 mr-2 rotate-180" />
+              All Pets
+            </Button>
+          )}
+          {adoptions.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto py-1">
+              {adoptions.map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() => setSelectedAdoptionId(a.id)}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-all whitespace-nowrap",
+                    selectedAdoptionId === a.id ? "bg-primary text-primary-foreground border-primary" : "bg-white hover:bg-muted"
+                  )}
+                >
+                  <img src={a.petImage || "/placeholder.svg"} className="w-4 h-4 rounded-full object-cover" />
+                  {a.petName}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
           <div className="flex items-center gap-6">
