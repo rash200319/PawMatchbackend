@@ -5,9 +5,6 @@
 
 PawMatch is a next-generation pet adoption platform designed to prioritize compatibility between pets and adopters. By moving beyond simple listings and integrating a lifestyle-based matching algorithm ("Pawsonality"), we aim to reduce return rates and ensure every animal finds a forever home where they can thrive.
 
-## 🌐 Live Site
-
-Check out the deployed application: **[https://pawmatch.dpdns.org/](https://pawmatch.dpdns.org/)**
 
 ## 🚀 Key Features
 
