@@ -1,9 +1,0 @@
-id
-animal_type
-condition_type
-location
-description
-contact_name
-contact_phone
-status
-created_at
